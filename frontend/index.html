@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IncidentIQ - AI Incident Response</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        h1 { font-size: 1.8rem; margin-bottom: 4px; color: #f8fafc; }
+        .subtitle { color: #94a3b8; margin-bottom: 30px; font-size: 0.9rem; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 24px; margin-bottom: 16px; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px; font-weight: 500; }
+        input, textarea { width: 100%; padding: 10px 14px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; font-size: 0.95rem; font-family: inherit; }
+        input:focus, textarea:focus { outline: none; border-color: #3b82f6; }
+        textarea { resize: vertical; min-height: 80px; }
+        .btn { padding: 10px 24px; border: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-primary:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+        .btn-refresh { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+        .btn-refresh:hover { border-color: #3b82f6; color: #e2e8f0; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .incident { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; margin-bottom: 12px; transition: border-color 0.2s; }
+        .incident:hover { border-color: #475569; }
+        .incident-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .incident-title { font-size: 1.05rem; font-weight: 600; color: #f8fafc; }
+        .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-auto { background: #1e3a5f; color: #60a5fa; }
+        .badge-manual { background: #1a3326; color: #4ade80; }
+        .badge-open { background: #3b1a1a; color: #f87171; }
+        .incident-details { color: #94a3b8; font-size: 0.9rem; margin-bottom: 12px; line-height: 1.5; }
+        .ai-analysis { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-top: 10px; }
+        .ai-label { font-size: 0.75rem; color: #3b82f6; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .ai-text { font-size: 0.85rem; color: #cbd5e1; line-height: 1.6; white-space: pre-wrap; }
+        .meta { font-size: 0.8rem; color: #64748b; margin-top: 10px; }
+        .empty { text-align: center; color: #64748b; padding: 40px; }
+        .loading { text-align: center; color: #64748b; padding: 20px; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; z-index: 100; transition: opacity 0.3s; }
+        .toast-success { background: #166534; color: #bbf7d0; }
+        .toast-error { background: #7f1d1d; color: #fecaca; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+        .stat { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px; text-align: center; }
+        .stat-value { font-size: 1.8rem; font-weight: 700; color: #f8fafc; }
+        .stat-label { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IncidentIQ</h1>
+        <p class="subtitle">AI-Powered Incident Response Platform</p>
+
+        <div class="stats" id="stats">
+            <div class="stat">
+                <div class="stat-value" id="total-count">-</div>
+                <div class="stat-label">Total Incidents</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="auto-count">-</div>
+                <div class="stat-label">Auto-Detected</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="manual-count">-</div>
+                <div class="stat-label">Manual Reports</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="font-size: 1.1rem; margin-bottom: 16px;">Report New Incident</h2>
+            <form id="incident-form">
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="title" placeholder="e.g. High CPU on prod-web-01" required>
+                </div>
+                <div class="form-group">
+                    <label>Details</label>
+                    <textarea id="details" placeholder="Describe the incident..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" id="submit-btn">Submit Incident</button>
+            </form>
+        </div>
+
+        <div class="header-row">
+            <h2 style="font-size: 1.1rem;">Recent Incidents</h2>
+            <button class="btn btn-refresh" onclick="loadIncidents()">Refresh</button>
+        </div>
+        <div id="incidents-list"><div class="loading">Loading incidents...</div></div>
+    </div>
+
+    <script>
+        const API = "https://7etavhhqs5.execute-api.ap-south-1.amazonaws.com";
+
+        async function loadIncidents() {
+            const list = document.getElementById("incidents-list");
+            list.innerHTML = '<div class="loading">Loading...</div>';
+            try {
+                const res = await fetch(`${API}/incidents`);
+                const data = await res.json();
+                const incidents = data.incidents || [];
+
+                document.getElementById("total-count").textContent = incidents.length;
+                document.getElementById("auto-count").textContent = incidents.filter(i => i.source === "auto").length;
+                document.getElementById("manual-count").textContent = incidents.filter(i => i.source === "manual").length;
+
+                if (incidents.length === 0) {
+                    list.innerHTML = '<div class="empty">No incidents yet. Report one above.</div>';
+                    return;
+                }
+                list.innerHTML = incidents.map(i => `
+                    <div class="incident">
+                        <div class="incident-header">
+                            <div class="incident-title">${esc(i.title)}</div>
+                            <div>
+                                <span class="badge badge-${i.source}">${i.source}</span>
+                                <span class="badge badge-open">${i.status}</span>
+                            </div>
+                        </div>
+                        <div class="incident-details">${esc(i.details)}</div>
+                        ${i.ai_analysis && !i.ai_analysis.startsWith("AI analysis unavailable") ? `
+                        <div class="ai-analysis">
+                            <div class="ai-label">AI Analysis</div>
+                            <div class="ai-text">${esc(i.ai_analysis)}</div>
+                        </div>` : ""}
+                        <div class="meta">${new Date(i.created_at).toLocaleString()} &middot; ${i.incident_id.slice(0, 8)}</div>
+                    </div>
+                `).join("");
+            } catch (e) {
+                list.innerHTML = '<div class="empty">Failed to load incidents.</div>';
+            }
+        }
+
+        document.getElementById("incident-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById("submit-btn");
+            btn.disabled = true;
+            btn.textContent = "Analyzing...";
+            try {
+                const res = await fetch(`${API}/incidents`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        title: document.getElementById("title").value,
+                        details: document.getElementById("details").value
+                    })
+                });
+                if (!res.ok) throw new Error("Failed");
+                document.getElementById("title").value = "";
+                document.getElementById("details").value = "";
+                toast("Incident created with AI analysis", "success");
+                loadIncidents();
+            } catch (e) {
+                toast("Failed to create incident", "error");
+            }
+            btn.disabled = false;
+            btn.textContent = "Submit Incident";
+        });
+
+        function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+        function toast(msg, type) {
+            const t = document.createElement("div");
+            t.className = `toast toast-${type}`;
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 300); }, 3000);
+        }
+
+        loadIncidents();
+    </script>
+</body>
+</html>
